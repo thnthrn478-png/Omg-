@@ -1,0 +1,270 @@
+-- โหลด Rayfield Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- สร้าง Window หลัก
+local Window = Rayfield:CreateWindow({
+   Name = "Ultimate Hub | Rayfield UI",
+   LoadingTitle = "กำลังอัปเดตระบบ...",
+   LoadingSubtitle = "โดย AI Assistant",
+   ConfigurationSaving = {
+      Enabled = false,
+      FolderName = "UltimateHub",
+      FileName = "Config"
+   },
+   KeySystem = false,
+})
+
+-- ตัวแปรระบบ
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+
+local noclipEnabled = false
+local speedEnabled = false
+local currentSpeed = 16
+local flingEnabled = false
+local espEnabled = false
+
+-- ตัวแปรสำหรับระบบเลือกผู้เล่น
+local selectedPlayerName = nil
+local targetFlingActive = false
+
+-- Tabs
+local MainTab = Window:CreateTab("หลัก (Main)", 4483362458)
+local TrollTab = Window:CreateTab("ป่วนผู้เล่น (Troll)", 4483362458)
+local VisualTab = Window:CreateTab("มองทะลุ (Visuals)", 4483362458)
+local InfoTab = Window:CreateTab("ข้อมูล (Info)", 4483362458)
+
+----------------------------------------------------
+-- 1. ฟังก์ชันวิ่งเร็ว & ทะลุกำแพง (Main Tab)
+----------------------------------------------------
+MainTab:CreateSection("การเคลื่อนไหว")
+
+MainTab:CreateToggle({
+   Name = "เปิด/ปิด วิ่งเร็ว",
+   CurrentValue = false,
+   Callback = function(Value)
+      speedEnabled = Value
+   end,
+})
+
+MainTab:CreateSlider({
+   Name = "ความเร็วในการวิ่ง (WalkSpeed)",
+   Range = {16, 300},
+   Increment = 1,
+   CurrentValue = 16,
+   Flag = "SpeedSlider",
+   Callback = function(Value)
+      currentSpeed = Value
+   end,
+})
+
+RunService.RenderStepped:Connect(function()
+   if speedEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+      LocalPlayer.Character.Humanoid.WalkSpeed = currentSpeed
+   end
+end)
+
+MainTab:CreateToggle({
+   Name = "ทะลุกำแพง (Noclip)",
+   CurrentValue = false,
+   Callback = function(Value)
+      noclipEnabled = Value
+   end,
+})
+
+RunService.Stepped:Connect(function()
+   if noclipEnabled and LocalPlayer.Character then
+      for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+         if part:IsA("BasePart") then
+            part.CanCollide = false
+         end
+      end
+   end
+end)
+
+----------------------------------------------------
+-- 2. ฟังก์ชันเลือกผู้เล่น, ลากตัวไปหา และ ดีดกระเด็น (Troll Tab)
+----------------------------------------------------
+TrollTab:CreateSection("ระบบเลือกเป้าหมายป่วน")
+
+-- ดึงรายชื่อผู้เล่นทั้งหมด
+local function getPlayerList()
+   local list = {}
+   for _, player in pairs(Players:GetPlayers()) do
+      if player ~= LocalPlayer then
+         table.insert(list, player.Name)
+      end
+   end
+   if #list == 0 then
+      table.insert(list, "ไม่มีผู้เล่นอื่น")
+   end
+   return list
+end
+
+-- Dropdown เลือกผู้เล่น
+local PlayerDropdown = TrollTab:CreateDropdown({
+   Name = "เลือกผู้เล่นเป้าหมาย",
+   Options = getPlayerList(),
+   CurrentOption = "เลือกผู้เล่น",
+   Flag = "SelectedPlayerDropdown",
+   Callback = function(Option)
+      if type(Option) == "table" then
+         selectedPlayerName = Option[1]
+      else
+         selectedPlayerName = Option
+      end
+   end,
+})
+
+-- ปุ่มรีเฟรชรายชื่อผู้เล่น
+TrollTab:CreateButton({
+   Name = "🔄 รีเฟรชรายชื่อผู้เล่น",
+   Callback = function()
+      PlayerDropdown:Refresh(getPlayerList(), true)
+      Rayfield:Notify({
+         Title = "รีเฟรชสำเร็จ",
+         Content = "อัปเดตรายชื่อผู้เล่นใหม่แล้ว",
+         Duration = 3,
+         Image = 4483362458,
+      })
+   end,
+})
+
+TrollTab:CreateSection("คำสั่งสำหรับเป้าหมาย")
+
+-- ปุ่มวาร์ป/ลากตัวไปหาผู้เล่นที่เลือก
+TrollTab:CreateButton({
+   Name = "⚡ วาร์ปไปหาผู้เล่นที่เลือก",
+   Callback = function()
+      if not selectedPlayerName or selectedPlayerName == "เลือกผู้เล่น" or selectedPlayerName == "ไม่มีผู้เล่นอื่น" then
+         Rayfield:Notify({ Title = "ข้อผิดพลาด", Content = "กรุณาเลือกผู้เล่นก่อน!", Duration = 3, Image = 4483362458 })
+         return
+      end
+      
+      local target = Players:FindFirstChild(selectedPlayerName)
+      if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+         LocalPlayer.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+         Rayfield:Notify({ Title = "สำเร็จ", Content = "วาร์ปไปหา " .. target.Name .. " แล้ว", Duration = 3, Image = 4483362458 })
+      else
+         Rayfield:Notify({ Title = "ข้อผิดพลาด", Content = "ไม่พบตัวละครของผู้เล่นนี้", Duration = 3, Image = 4483362458 })
+      end
+   end,
+})
+
+-- ปุ่มสลับเปิดปิด ดีดเฉพาะคนที่เลือกกระเด็นไกลๆ
+TrollTab:CreateToggle({
+   Name = "💥 ดีดผู้เล่นที่เลือกให้กระเด็นไปไกล",
+   CurrentValue = false,
+   Callback = function(Value)
+      targetFlingActive = Value
+   end,
+})
+
+-- ระบบลูปดีดเป้าหมายที่เลือก
+RunService.Heartbeat:Connect(function()
+   if targetFlingActive and selectedPlayerName then
+      local target = Players:FindFirstChild(selectedPlayerName)
+      if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+         local localRoot = LocalPlayer.Character.HumanoidRootPart
+         local targetRoot = target.Character.HumanoidRootPart
+         
+         -- วาร์ปไปซ้อนทับตัวเป้าหมายแล้วใส่ความเร็วมหาศาลเพื่อให้ชนกระเด็น
+         localRoot.CFrame = targetRoot.CFrame
+         localRoot.Velocity = Vector3.new(50000, 50000, 50000)
+         localRoot.RotVelocity = Vector3.new(50000, 50000, 50000)
+      end
+   end
+end)
+
+----------------------------------------------------
+-- 3. ฟังก์ชันมองผู้เล่น + ระยะทาง (Visuals Tab)
+----------------------------------------------------
+VisualTab:CreateSection("ESP ผู้เล่น")
+
+local espFolder = Instance.new("Folder", game.CoreGui)
+espFolder.Name = "RayfieldESP_Folder"
+
+VisualTab:CreateToggle({
+   Name = "มองผู้เล่นพร้อมระยะทาง (ESP + Distance)",
+   CurrentValue = false,
+   Callback = function(Value)
+      espEnabled = Value
+      if not Value then
+         espFolder:ClearAllChildren()
+      end
+   end,
+})
+
+RunService.RenderStepped:Connect(function()
+   if not espEnabled then return end
+   espFolder:ClearAllChildren()
+   
+   for _, player in pairs(Players:GetPlayers()) do
+      if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Head") then
+         local rootPart = player.Character.HumanoidRootPart
+         local head = player.Character.Head
+         
+         local distance = 0
+         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude)
+         end
+         
+         local billboard = Instance.new("BillboardGui")
+         billboard.Size = UDim2.new(0, 200, 0, 50)
+         billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+         billboard.AlwaysOnTop = true
+         billboard.Adornee = head
+         
+         local textLabel = Instance.new("TextLabel")
+         textLabel.Size = UDim2.new(1, 0, 1, 0)
+         textLabel.BackgroundTransparency = 1
+         textLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+         textLabel.TextStrokeTransparency = 0
+         textLabel.TextSize = 14
+         textLabel.Font = Enum.Font.SourceSansBold
+         textLabel.Text = string.format("%s\n[%d เมตร]", player.Name, distance)
+         
+         textLabel.Parent = billboard
+         billboard.Parent = espFolder
+      end
+   end
+end)
+
+----------------------------------------------------
+-- 4. ฟังก์ชันดูตารางอันดับ (Info Tab)
+----------------------------------------------------
+InfoTab:CreateSection("ตารางอันดับผู้เล่นในเซิร์ฟเวอร์")
+
+local LeaderboardParagraph = InfoTab:CreateParagraph({
+   Title = "รายชื่อผู้เล่น & คะแนน",
+   Content = "กำลังโหลดข้อมูล..."
+})
+
+task.spawn(function()
+   while true do
+      task.wait(1)
+      local infoText = ""
+      for _, player in pairs(Players:GetPlayers()) do
+         local scoreText = "ไม่มีค่า Leaderstats"
+         if player:FindFirstChild("leaderstats") then
+            local stats = player.leaderstats:GetChildren()
+            if #stats > 0 then
+               scoreText = stats[1].Name .. ": " .. tostring(stats[1].Value)
+            end
+         end
+         infoText = infoText .. "• " .. player.Name .. " (" .. scoreText .. ")\n"
+      end
+      LeaderboardParagraph:Set({
+         Title = "รายชื่อผู้เล่น & คะแนน (" .. #Players:GetPlayers() .. " คนในเซิร์ฟ)",
+         Content = infoText
+      })
+   end
+end)
+
+Rayfield:Notify({
+   Title = "โหลดสคริปต์สำเร็จ!",
+   Content = "เพิ่มระบบเลือกผู้เล่นและรีเฟรชแล้ว",
+   Duration = 6.5,
+   Image = 4483362458,
+})
